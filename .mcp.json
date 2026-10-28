@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "rinda": {
+      "type": "http",
+      "url": "${RINDA_MCP_URL:-https://app.rinda.ai/api/mcp}"
+    }
+  }
+}

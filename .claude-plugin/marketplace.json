@@ -1,0 +1,15 @@
+{
+  "name": "rinda",
+  "description": "Rinda plugins for Claude",
+  "owner": {
+    "name": "Grinda AI",
+    "url": "https://rinda.ai"
+  },
+  "plugins": [
+    {
+      "name": "rinda",
+      "source": ".",
+      "description": "Rinda export sales — buyer lists, campaigns and inbox"
+    }
+  ]
+}

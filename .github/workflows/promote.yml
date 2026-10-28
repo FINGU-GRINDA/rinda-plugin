@@ -1,0 +1,50 @@
+# FINGU-GRINDA/rinda-plugin 쪽에서 도는 워크플로. publish-rinda-plugin.yml 이 sync 태그 커밋에 넣어 보낸다.
+# 조직 룰셋이 모든 브랜치에 검증된 서명을 요구하는데 deploy key 로는 서명할 수 없다.
+# 그래서 태그(룰셋 대상 아님)로 받은 트리를 GITHUB_TOKEN 으로 API 커밋해 GitHub 서명을 받아 main 에 올린다.
+name: Promote sync tag
+on:
+  push:
+    tags: ['sync/*']
+permissions:
+  contents: write
+concurrency:
+  group: promote
+  cancel-in-progress: false
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Signed commit to main
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          msg=$(gh api "repos/$REPO/git/commits/$SHA" -q .message)
+          tree=$(gh api "repos/$REPO/git/commits/$SHA" -q .tree.sha)
+          parent=$(gh api "repos/$REPO/git/matching-refs/heads/main" -q '.[] | select(.ref == "refs/heads/main") | .object.sha')
+          # .github 는 main 것을 그대로 둔다 — GITHUB_TOKEN 은 워크플로 파일을 만들거나 고치거나 지울 수 없다
+          gh api "repos/$REPO/git/trees/$tree" -q '[.tree[] | select(.path != ".github") | {path, mode, type, sha}]' > src.json
+          echo '[]' > keep.json
+          if [ -n "$parent" ]; then
+            gh api "repos/$REPO/git/trees/$(gh api "repos/$REPO/git/commits/$parent" -q .tree.sha)" \
+              -q '[.tree[] | select(.path == ".github") | {path, mode, type, sha}]' > keep.json
+          fi
+          jq -s '{tree: (.[0] + .[1])}' src.json keep.json > tree.json
+          newtree=$(gh api "repos/$REPO/git/trees" --input tree.json -q .sha)
+          if [ -n "$parent" ] && [ "$(gh api "repos/$REPO/git/commits/$parent" -q .tree.sha)" = "$newtree" ]; then
+            echo "변경 없음"
+          else
+            jq -n --arg m "$msg" --arg t "$newtree" --arg p "$parent" \
+              '{message: $m, tree: $t, parents: (if $p == "" then [] else [$p] end)}' > commit.json
+            commit=$(gh api "repos/$REPO/git/commits" --input commit.json -q .sha)
+            echo "commit=$commit verified=$(gh api "repos/$REPO/git/commits/$commit" -q .verification.verified)"
+            if [ -n "$parent" ]; then
+              gh api -X PATCH "repos/$REPO/git/refs/heads/main" -f sha="$commit" > /dev/null
+            else
+              gh api "repos/$REPO/git/refs" -f ref=refs/heads/main -f sha="$commit" > /dev/null
+            fi
+          fi
+          gh api -X DELETE "repos/$REPO/git/refs/tags/$TAG"
