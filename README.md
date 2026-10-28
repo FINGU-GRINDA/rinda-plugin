@@ -29,3 +29,4 @@ You need a Rinda account. Connecting a mailbox and billing are done in the Rinda
 ## Help · 문의
 
 https://rinda.ai
+<!-- promote test -->
