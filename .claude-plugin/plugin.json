@@ -1,7 +1,7 @@
 {
   "name": "rinda",
   "displayName": "Rinda",
-  "version": "0.11.2",
+  "version": "0.12.0",
   "description": "Run Rinda export sales from your AI assistant: buyer lists, email campaigns and the inbox, with a confirmation before anything is sent.",
   "author": {
     "name": "Grinda AI",
